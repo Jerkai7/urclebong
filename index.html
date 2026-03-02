@@ -303,20 +303,101 @@
       });
     }
 
-    function addFiles(picked){
-      picked.forEach(f=>{
-        if(!f.type.startsWith("image/")) return;
-        if(f.size > 10 * 1024 * 1024) return;
-        files.push(f);
+    /* ===========================
+       ✅ KOMPres FOTO (500KB–1MB)
+       - Kompres hanya jika >1MB
+       - Resize max 1600px
+       - Quality turun bertahap sampai <=1MB (min 0.60)
+       =========================== */
+    async function compressImage(file){
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
+            const MAX_WIDTH = 1600;
+
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+              height = Math.round(height * (MAX_WIDTH / width));
+              width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+
+            let quality = 0.80;
+
+            function attempt(){
+              canvas.toBlob((blob) => {
+                if(!blob) return resolve(file);
+
+                // target: <= 1MB
+                if (blob.size > 1024 * 1024 && quality > 0.60) {
+                  quality = Math.max(0.60, quality - 0.05);
+                  attempt();
+                  return;
+                }
+
+                // hasil akhir (biasanya 500KB–1MB tergantung detail gambar)
+                const out = new File([blob], file.name.replace(/\.(png|webp|heic|heif)$/i, ".jpg"), {
+                  type: "image/jpeg",
+                  lastModified: Date.now()
+                });
+                resolve(out);
+              }, "image/jpeg", quality);
+            }
+
+            attempt();
+          };
+
+          img.onerror = () => resolve(file);
+        };
+
+        reader.onerror = () => resolve(file);
       });
+    }
+
+    // ✅ diubah jadi async + kompres jika > 1MB
+    async function addFiles(picked){
+      for (const f of picked){
+        if(!f.type.startsWith("image/")) continue;
+        if(f.size > 10 * 1024 * 1024) continue;
+
+        let finalFile = f;
+
+        // kompres hanya jika ukuran awal > 1MB
+        if (f.size > 1024 * 1024) {
+          finalFile = await compressImage(f);
+        }
+
+        files.push(finalFile);
+      }
       renderPreview();
     }
 
     btnGallery.addEventListener("click", ()=> fileGallery.click());
     btnCamera.addEventListener("click", ()=> fileCamera.click());
 
-    fileGallery.addEventListener("change", (e)=>{ addFiles(Array.from(e.target.files || [])); fileGallery.value=""; });
-    fileCamera.addEventListener("change", (e)=>{ addFiles(Array.from(e.target.files || [])); fileCamera.value=""; });
+    // ✅ handler diubah jadi async agar menunggu proses kompres
+    fileGallery.addEventListener("change", async (e)=>{
+      await addFiles(Array.from(e.target.files || []));
+      fileGallery.value="";
+    });
+    fileCamera.addEventListener("change", async (e)=>{
+      await addFiles(Array.from(e.target.files || []));
+      fileCamera.value="";
+    });
 
     resetBtn.addEventListener("click", ()=>{
       if(files.length && !confirm("Reset semua data?")) return;
