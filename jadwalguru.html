@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jadwal Per Guru - Kelas XII</title>
+  <style>
+    :root { --bg:#0b1220; --card:#101a33; --text:#eaf0ff; --muted:#a8b3d6; --line:#1f2c55; --accent:#6aa6ff; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; background:linear-gradient(180deg,#071022,#0b1220); color:var(--text); }
+    .wrap { max-width:980px; margin:0 auto; padding:24px 16px 48px; }
+    h1 { font-size:22px; margin:0 0 6px; }
+    p { margin:0 0 18px; color:var(--muted); }
+    .card { background:rgba(16,26,51,.92); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .controls { display:grid; grid-template-columns: 1fr 220px; gap:12px; align-items:end; }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, select, button {
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+      background:#0b1430; color:var(--text); outline:none;
+    }
+    input:focus, select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(106,166,255,.2); }
+    button { cursor:pointer; background:linear-gradient(180deg,#2b65ff,#1a4ad4); border:none; font-weight:600; }
+    button:hover { filter:brightness(1.05); }
+    .meta { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; color:var(--muted); font-size:12px; }
+    .badge { padding:6px 10px; background:#0b1430; border:1px solid var(--line); border-radius:999px; }
+    table { width:100%; border-collapse:collapse; margin-top:14px; overflow:hidden; border-radius:12px; }
+    th, td { padding:10px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { text-align:left; font-size:12px; color:var(--muted); background:#0b1430; position:sticky; top:0; }
+    tr:hover td { background:rgba(106,166,255,.06); }
+    .empty { padding:14px; color:var(--muted); border:1px dashed var(--line); border-radius:12px; margin-top:14px; }
+    .footer { margin-top:16px; color:var(--muted); font-size:12px; }
+    @media (max-width:720px){
+      .controls{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Jadwal Per Guru (Kelas XII)</h1>
+    <p>Ketik atau pilih <b>Nama PTK</b> untuk melihat jadwal khusus guru tersebut.</p>
+
+    <div class="card">
+      <div class="controls">
+        <div>
+          <label for="q">Cari Nama PTK (contoh: A. Rafik)</label>
+          <input id="q" placeholder="Ketik nama guru…" autocomplete="off" />
+        </div>
+        <div>
+          <label for="pick">Atau pilih dari daftar</label>
+          <select id="pick"></select>
+        </div>
+      </div>
+
+      <div class="meta" id="meta"></div>
+
+      <div id="out"></div>
+
+      <div class="footer">
+        Tips: kalau nama tidak muncul, coba ejaan yang tepat (mis. “TUTI HARYATI” vs “Tuti Haryati”).
+      </div>
+    </div>
+  </div>
+
+<script>
+/** DATA JADWAL (hasil dari tabel yang Bapak/Ibu kirim) */
+const schedules = [
+  // Hari, Jam, Kelas, Nama PTK, Mata Pelajaran
+  ["Kamis","08.00–10.00","12 BUSANA","A. Rafik","Bahasa Indonesia"],
+  ["Kamis","10.00–12.00","12 LISTRIK","A. Rafik","Bahasa Indonesia"],
+  ["Sabtu","08.00–10.00","12 MULTIMEDIA","A. Rafik","Bahasa Indonesia"],
+  ["Sabtu","10.00–12.00","12 TBSM","A. Rafik","Bahasa Indonesia"],
+  ["Senin","08.00–10.00","12 TKRO","A. Rafik","Bahasa Indonesia"],
+
+  ["Selasa","10.00–12.00","12 BUSANA","Belum ditentukan","IPA Terapan"],
+
+  ["Sabtu","08.00–10.00","12 BUSANA","Erma Resmianti","Pendidikan Pancasila"],
+  ["Sabtu","10.00–12.00","12 LISTRIK","Erma Resmianti","Pendidikan Pancasila dan Kewarganegaraan"],
+  ["Kamis","08.00–10.00","12 MULTIMEDIA","Erma Resmianti","Pendidikan Pancasila dan Kewarganegaraan"],
+  ["Kamis","10.00–12.00","12 TBSM","Erma Resmianti","Pendidikan Pancasila dan Kewarganegaraan"],
+  ["Selasa","08.00–10.00","12 TKRO","Erma Resmianti","Pendidikan Pancasila dan Kewarganegaraan"],
+
+  ["Senin","08.00–10.00","12 BUSANA","Guru A","Sejarah"],
+  ["Senin","10.00–12.00","12 LISTRIK","Guru A","Sejarah"],
+  ["Selasa","08.00–10.00","12 MULTIMEDIA","Guru A","Sejarah"],
+  ["Selasa","10.00–12.00","12 TBSM","Guru A","Sejarah"],
+  ["Kamis","08.00–10.00","12 TKRO","Guru A","Sejarah"],
+
+  ["Senin","08.00–10.00","12 LISTRIK","Guru B","FISIKA"],
+  ["Sabtu","10.00–12.00","12 MULTIMEDIA","Guru B","FISIKA"],
+  ["Sabtu","08.00–10.00","12 TBSM","Guru B","FISIKA"],
+  ["Kamis","10.00–12.00","12 TKRO","Guru B","FISIKA"],
+
+  ["Selasa","08.00–10.00","12 BUSANA","Karnolis Efendi","PJOK"],
+  ["Selasa","10.00–12.00","12 LISTRIK","Karnolis Efendi","PJOK"],
+  ["Senin","08.00–10.00","12 MULTIMEDIA","Karnolis Efendi","PJOK"],
+  ["Senin","10.00–12.00","12 TBSM","Karnolis Efendi","PJOK"],
+  ["Sabtu","08.00–10.00","12 TKRO","Karnolis Efendi","PJOK"],
+
+  ["Selasa","10.00–12.00","12 MULTIMEDIA","Lastri","Pendidikan Agama Islam dan Budi Pekerti"],
+  ["Selasa","08.00–10.00","12 TBSM","Lastri","Pendidikan Agama Islam dan Budi Pekerti"],
+  ["Jumat","09.30–11.00","12 TKRO","Lastri","Pendidikan Agama Islam dan Budi Pekerti"],
+
+  ["Jumat","08.00–09.30","12 BUSANA","Liza Kurniawati","KIMIA"],
+  ["Jumat","09.30–11.00","12 LISTRIK","Liza Kurniawati","KIMIA"],
+  ["Kamis","10.00–12.00","12 MULTIMEDIA","Liza Kurniawati","KIMIA"],
+  ["Kamis","08.00–10.00","12 TBSM","Liza Kurniawati","KIMIA"],
+  ["Sabtu","10.00–12.00","12 TKRO","Liza Kurniawati","KIMIA"],
+
+  ["Kamis","10.00–12.00","12 BUSANA","Melya","Bahasa Inggris"],
+  ["Kamis","08.00–10.00","12 LISTRIK","Melya","Bahasa Inggris"],
+  ["Jumat","08.00–09.30","12 MULTIMEDIA","Melya","Bahasa Inggris"],
+  ["Jumat","09.30–11.00","12 TBSM","Melya","Bahasa Inggris"],
+  ["Senin","10.00–12.00","12 TKRO","Melya","Bahasa Inggris"],
+
+  ["Senin","10.00–12.00","12 BUSANA","TUTI HARYATI","Pendidikan Agama Islam dan Budi Pekerti"],
+  ["Selasa","08.00–10.00","12 LISTRIK","TUTI HARYATI","Pendidikan Agama Islam dan Budi Pekerti"],
+
+  ["Sabtu","10.00–12.00","12 BUSANA","Yodi Andopyo","Matematika (Umum)"],
+  ["Sabtu","08.00–10.00","12 LISTRIK","Yodi Andopyo","Matematika (Umum)"],
+  ["Senin","10.00–12.00","12 MULTIMEDIA","Yodi Andopyo","Matematika (Umum)"],
+  ["Senin","08.00–10.00","12 TBSM","Yodi Andopyo","Matematika (Umum)"],
+  ["Jumat","08.00–09.30","12 TKRO","Yodi Andopyo","Matematika (Umum)"],
+];
+
+const dayOrder = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
+const toMinutes = (jam) => {
+  // "08.00–10.00" -> 480
+  const start = (jam || "").split("–")[0]?.trim() || "";
+  const [hh, mm] = start.split(".");
+  const h = parseInt(hh,10), m = parseInt(mm,10);
+  if (Number.isFinite(h) && Number.isFinite(m)) return h*60+m;
+  return 9999;
+};
+
+const uniqTeachers = [...new Set(schedules.map(r => r[3]))].sort((a,b)=>a.localeCompare(b,'id'));
+const pick = document.getElementById('pick');
+const q = document.getElementById('q');
+const out = document.getElementById('out');
+const meta = document.getElementById('meta');
+
+// populate dropdown
+pick.innerHTML = `<option value="">— Pilih Nama PTK —</option>` + uniqTeachers.map(t=>`<option>${t}</option>`).join("");
+
+function render(teacher){
+  const name = (teacher || "").trim();
+  const rows = schedules.filter(r => r[3].toLowerCase() === name.toLowerCase());
+
+  meta.innerHTML = "";
+  out.innerHTML = "";
+
+  if(!name){
+    out.innerHTML = `<div class="empty">Silakan ketik atau pilih Nama PTK untuk melihat jadwal.</div>`;
+    return;
+  }
+
+  if(rows.length === 0){
+    out.innerHTML = `<div class="empty">Tidak ditemukan jadwal untuk <b>${escapeHtml(name)}</b>.</div>`;
+    return;
+  }
+
+  // sort
+  rows.sort((a,b)=>{
+    const da = dayOrder.indexOf(a[0]); const db = dayOrder.indexOf(b[0]);
+    if(da !== db) return da - db;
+    return toMinutes(a[1]) - toMinutes(b[1]);
+  });
+
+  // meta badges
+  const total = rows.length;
+  const days = [...new Set(rows.map(r=>r[0]))].length;
+  const mapels = [...new Set(rows.map(r=>r[4]))].join(", ");
+  meta.innerHTML = `
+    <span class="badge"><b>${escapeHtml(name)}</b></span>
+    <span class="badge">${total} jadwal</span>
+    <span class="badge">${days} hari aktif</span>
+    <span class="badge">Mapel: ${escapeHtml(mapels)}</span>
+  `;
+
+  // table
+  out.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Hari</th>
+          <th>Jam</th>
+          <th>Kelas</th>
+          <th>Mata Pelajaran</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r=>`
+          <tr>
+            <td>${escapeHtml(r[0])}</td>
+            <td>${escapeHtml(r[1])}</td>
+            <td>${escapeHtml(r[2])}</td>
+            <td>${escapeHtml(r[4])}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
+
+// events
+pick.addEventListener('change', () => {
+  q.value = pick.value;
+  render(pick.value);
+});
+
+q.addEventListener('input', () => {
+  const val = q.value.trim();
+  // auto-select if exact match exists
+  const match = uniqTeachers.find(t => t.toLowerCase() === val.toLowerCase());
+  if (match) pick.value = match; else pick.value = "";
+  render(val);
+});
+
+// initial
+render("");
+</script>
+</body>
+</html>
