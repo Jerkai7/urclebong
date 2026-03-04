@@ -3,13 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cek Progres Pengajuan BPJS</title>
+  <title>Cek Progres Pengajuan</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
     :root{ --pad: 8px; }
-
     body{
       background:linear-gradient(135deg,#0052A0,#003B73);
       min-height:100vh;
@@ -20,20 +19,12 @@
         calc(var(--pad) + env(safe-area-inset-bottom))
         calc(var(--pad) + env(safe-area-inset-left));
     }
-
     .app-shell{width:100%;max-width:720px;}
-    @media (max-width:576px){
-      .app-shell{max-width:100%;}
-    }
-
-    .bpjs-header{
-      background:linear-gradient(135deg,#0052A0,#003B73);
-      border-bottom:4px solid #FFD700;
-    }
-
-    .badge-status{ font-size:.85rem; padding:.35rem .6rem; border-radius:999px; }
-    .name-btn{ cursor:pointer; }
-    .small-muted{ font-size:.9rem; color:#6c757d; }
+    @media (max-width:576px){ .app-shell{max-width:100%;} }
+    .bpjs-header{background:linear-gradient(135deg,#0052A0,#003B73);border-bottom:4px solid #FFD700;}
+    .hint{font-size:.85rem;color:#64748b;}
+    .badge-status{ font-size:.85rem; padding:.35rem .65rem; border-radius:999px; }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
 </head>
 
@@ -49,35 +40,37 @@
 
         <div class="card-body bg-light p-2 p-sm-4">
 
-          <!-- Tombol kembali ke form -->
-          <div class="d-grid mb-2">
-            <a href="index.html" class="btn btn-primary rounded-4 py-2 fw-semibold">
-              ⬅ Kembali ke Form Pengajuan
-            </a>
-          </div>
-
           <div class="alert alert-primary border-0 rounded-4 mb-3">
             <div class="small">
-              Klik nama untuk melihat status & pesan dari admin. Gunakan pencarian bila datanya banyak.
+              Halaman ini menampilkan <b>10 pengajuan terakhir</b>.
+              Jika nama Anda belum muncul, mohon tunggu beberapa saat lalu tekan <b>Refresh</b>.
             </div>
           </div>
 
-          <!-- Pencarian + Refresh -->
-          <div class="row g-2 align-items-end">
-            <div class="col-sm-8">
-              <label class="form-label fw-semibold mb-1">Cari Nama</label>
-              <input id="search" class="form-control rounded-4" placeholder="Ketik nama..." />
-            </div>
-            <div class="col-sm-4 d-grid">
-              <button class="btn btn-outline-secondary rounded-4 py-2" id="btnRefresh">🔄 Refresh</button>
+          <div class="d-flex gap-2 mb-3">
+            <a id="backToForm" class="btn btn-light border rounded-4 flex-fill" href="#">← Kembali ke Form</a>
+            <button id="btnRefresh" class="btn btn-outline-secondary rounded-4 flex-fill">🔄 Refresh</button>
+          </div>
+
+          <!-- LOADING BOX -->
+          <div id="loadingBox" class="card rounded-4 border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+              <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+              <div class="fw-bold mt-3">Memuat data progres...</div>
+              <div class="text-secondary small mt-1">
+                Mohon tunggu, sistem sedang mengambil data terbaru dari server.
+              </div>
+              <div class="hint mt-3">
+                Jika lebih dari <b>12 detik</b> belum muncul, silakan tekan <b>Refresh</b>.
+              </div>
             </div>
           </div>
 
-          <!-- List -->
-          <div id="list" class="mt-3"></div>
+          <!-- ERROR BOX -->
+          <div id="errorBox" class="alert alert-danger rounded-4 d-none mt-3" role="alert"></div>
 
-          <!-- Detail -->
-          <div id="detail" class="mt-3"></div>
+          <!-- DATA LIST -->
+          <div id="dataBox" class="mt-3 d-none"></div>
 
         </div>
 
@@ -89,122 +82,122 @@
     </div>
   </div>
 
-<script>
-  // URL Apps Script kamu
-  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRPNeZ8R5dATewhUuuxVv84UM_-Eu53_qRBoIfK2A4VcocRhUQr4D4D5UFXzkcDFY/exec";
+  <script>
+    // ✅ URL Apps Script kamu
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyRPNeZ8R5dATewhUuuxVv84UM_-Eu53_qRBoIfK2A4VcocRhUQr4D4D5UFXzkcDFY/exec";
 
-  const listEl = document.getElementById("list");
-  const detailEl = document.getElementById("detail");
-  const searchEl = document.getElementById("search");
-  const btnRefresh = document.getElementById("btnRefresh");
+    // ✅ Link kembali ke form
+    // Kalau form kamu adalah index.html, biarkan "index.html"
+    const FORM_URL = "index.html";
 
-  let allItems = [];
+    const backToForm = document.getElementById("backToForm");
+    backToForm.href = FORM_URL;
 
-  function badge(status){
-    const s = (status || "Antrian").toUpperCase();
-    if(s === "SELESAI") return `<span class="badge bg-success badge-status">SELESAI</span>`;
-    if(s === "KENDALA") return `<span class="badge bg-danger badge-status">KENDALA</span>`;
-    return `<span class="badge bg-warning text-dark badge-status">ANTRIAN</span>`;
-  }
+    const loadingBox = document.getElementById("loadingBox");
+    const errorBox = document.getElementById("errorBox");
+    const dataBox = document.getElementById("dataBox");
+    const btnRefresh = document.getElementById("btnRefresh");
 
-  function fmtTime(v){
-    try{
-      if(!v) return "-";
-      return new Date(v).toLocaleString("id-ID");
-    }catch(e){
-      return "-";
-    }
-  }
-
-  function escapeHtml(str){
-    return String(str).replace(/[&<>"']/g, (m) => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    }[m]));
-  }
-
-  function renderList(items){
-    detailEl.innerHTML = "";
-
-    if(!items.length){
-      listEl.innerHTML = `<div class="alert alert-light rounded-4">Belum ada data pengajuan.</div>`;
-      return;
+    function escapeHtml(str){
+      return String(str ?? "").replace(/[&<>"']/g, (m) => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[m]));
     }
 
-    const rows = items.map((it, idx)=>`
-      <div class="list-group-item d-flex justify-content-between align-items-center gap-2 name-btn" data-idx="${idx}">
-        <div>
-          <div class="fw-semibold">${escapeHtml(it.nama)}</div>
-          <div class="small-muted">Update: ${fmtTime(it.updateTerakhir || it.waktu)}</div>
-        </div>
-        <div>${badge(it.status)}</div>
-      </div>
-    `).join("");
+    function fmtTime(v){
+      try{
+        if(!v) return "-";
+        return new Date(v).toLocaleString("id-ID");
+      }catch(e){
+        return "-";
+      }
+    }
 
-    listEl.innerHTML = `<div class="list-group rounded-4 overflow-hidden">${rows}</div>`;
+    function badge(status){
+      const s = (status || "Antrian").toUpperCase();
 
-    listEl.querySelectorAll(".name-btn").forEach(el=>{
-      el.addEventListener("click", ()=>{
-        const i = Number(el.getAttribute("data-idx"));
-        showDetail(items[i]);
-      });
-    });
-  }
+      if (s === "SELESAI") return `<span class="badge bg-success badge-status">SELESAI</span>`;
+      if (s === "KENDALA") return `<span class="badge bg-danger badge-status">KENDALA</span>`;
+      if (s === "ANTRIAN") return `<span class="badge bg-secondary badge-status">ANTRIAN</span>`;
+      // default
+      return `<span class="badge bg-warning text-dark badge-status">DIPROSES</span>`;
+    }
 
-  function showDetail(it){
-    detailEl.innerHTML = `
-      <div class="card rounded-4 border-0 shadow-sm">
-        <div class="card-body p-3 p-sm-4">
-          <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-            <div>
-              <div class="fw-bold fs-5 mb-1">${escapeHtml(it.nama)}</div>
-              <div class="small-muted">Update terakhir: ${fmtTime(it.updateTerakhir || it.waktu)}</div>
-            </div>
-            <div>${badge(it.status)}</div>
+    function showLoading(){
+      loadingBox.classList.remove("d-none");
+      errorBox.classList.add("d-none");
+      dataBox.classList.add("d-none");
+      dataBox.innerHTML = "";
+    }
+
+    function showError(msg){
+      loadingBox.classList.add("d-none");
+      dataBox.classList.add("d-none");
+      errorBox.textContent = msg;
+      errorBox.classList.remove("d-none");
+    }
+
+    function renderList(items){
+      if(!items || items.length === 0){
+        dataBox.innerHTML = `
+          <div class="alert alert-light rounded-4 border">
+            Belum ada data pengajuan.
           </div>
-
-          <hr>
-
-          <div class="fw-semibold mb-1">Pesan admin</div>
-          <div>${escapeHtml(it.pesan || "-").replaceAll("\n","<br>")}</div>
-        </div>
-      </div>
-    `;
-    detailEl.scrollIntoView({behavior:"smooth", block:"start"});
-  }
-
-  async function load(){
-    listEl.innerHTML = `<div class="alert alert-light rounded-4">Memuat data...</div>`;
-    detailEl.innerHTML = "";
-
-    try{
-      const res = await fetch(`${APPS_SCRIPT_URL}?mode=list`);
-      const data = await res.json();
-
-      if(!data.ok){
-        listEl.innerHTML = `<div class="alert alert-danger rounded-4">Gagal memuat data.</div>`;
+        `;
         return;
       }
 
-      allItems = data.items || [];
-      applySearch();
-    }catch(err){
-      console.warn(err);
-      listEl.innerHTML = `<div class="alert alert-danger rounded-4">
-        Tidak bisa mengambil data. Pastikan Apps Script sudah di-deploy ulang (Manage deployments → Edit → New Version → Deploy).
-      </div>`;
+      const html = items.map(it => `
+        <div class="card rounded-4 border-0 shadow-sm mb-2">
+          <div class="card-body p-3 p-sm-4">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="fw-bold">${escapeHtml(it.nama || "-")}</div>
+                <div class="hint">Waktu: <span class="mono">${escapeHtml(fmtTime(it.waktu))}</span></div>
+                <div class="hint">Update: <span class="mono">${escapeHtml(fmtTime(it.updateTerakhir || it.waktu))}</span></div>
+              </div>
+              <div>${badge(it.status)}</div>
+            </div>
+
+            <hr class="my-3">
+
+            <div class="fw-semibold">Pesan:</div>
+            <div class="text-secondary">${escapeHtml(it.pesan || "-").replaceAll("\n","<br>")}</div>
+          </div>
+        </div>
+      `).join("");
+
+      dataBox.innerHTML = html;
     }
-  }
 
-  function applySearch(){
-    const q = (searchEl.value || "").trim().toLowerCase();
-    const filtered = !q ? allItems : allItems.filter(it => String(it.nama||"").toLowerCase().includes(q));
-    renderList(filtered);
-  }
+    async function loadData(){
+      showLoading();
 
-  searchEl.addEventListener("input", applySearch);
-  btnRefresh.addEventListener("click", load);
+      try{
+        // Tambah cache-buster supaya tidak ke-cache browser (opsional)
+        const res = await fetch(`${APPS_SCRIPT_URL}?mode=list&_=${Date.now()}`, { method:"GET" });
+        const data = await res.json();
 
-  load();
-</script>
+        if(!data || data.ok !== true){
+          showError("Gagal mengambil data dari server. Silakan coba Refresh.");
+          return;
+        }
+
+        loadingBox.classList.add("d-none");
+        errorBox.classList.add("d-none");
+        dataBox.classList.remove("d-none");
+
+        renderList(data.items);
+
+      }catch(err){
+        showError("Koneksi bermasalah / server sedang sibuk. Silakan coba Refresh.");
+      }
+    }
+
+    btnRefresh.addEventListener("click", loadData);
+
+    // load awal
+    loadData();
+  </script>
 </body>
 </html>
